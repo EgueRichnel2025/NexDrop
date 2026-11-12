@@ -1,5 +1,14 @@
 # Dependencies
 node_modules/
+backend/.venv/
+
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Frontend build output
 dist/
