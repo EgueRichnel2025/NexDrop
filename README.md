@@ -27,17 +27,22 @@ NexDrop is a Windows-first desktop application for transferring files and folder
 | Native transfer engine | Rust |
 | Online API | Python + FastAPI |
 | Database | PostgreSQL |
-| Local backend environment | Docker Compose |
+| Local backend environment | Docker Compose (planned) |
 
 The API is the control plane. File data should travel directly between peers whenever possible. A relay is a fallback data-plane component and must only forward encrypted content.
 
 ## Current development status
 
-The repository currently contains the Tauri/React/Rust application foundation and the initial architecture and roadmap documents. The actual transfer engine, LAN discovery, Internet transport, backend, and billing features have **not** been implemented yet.
+The repository contains the Tauri/React/Rust desktop foundation, initial architecture and roadmap documentation, and the first FastAPI server-backend foundation.
+
+The backend foundation currently includes isolated Python dependency management with uv, validated application settings, asynchronous SQLAlchemy/Psycopg engine and session setup, an asynchronous Alembic scaffold, and liveness/readiness endpoints with automated tests.
+
+The following are **not implemented yet**: account authentication, user/device management, transfer signaling, persistent business models and migrations, quotas, subscriptions, billing, LAN discovery, the Rust transfer engine, direct Internet transport, and relay service.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Backend development guide](backend/README.md)
 
 ## Development prerequisites
 
@@ -49,9 +54,10 @@ For the current Windows development target:
 - Rust stable with the MSVC x64 target
 - Visual Studio C++ Build Tools and Windows SDK
 - WebView2 Runtime
+- Python 3.12 and uv
 - Git
 
-## Getting started
+## Desktop development
 
 Install JavaScript dependencies:
 
@@ -85,10 +91,33 @@ cargo check --manifest-path src-tauri/Cargo.toml
 
 On Windows, run Cargo commands from a Visual Studio Developer Command Prompt (or another shell where the MSVC compiler and linker are available).
 
+## Backend development
+
+From Git Bash, configure the uv cache on D: and synchronize the isolated environment:
+
+~~~bash
+cd /d/Projet/NexDrop/backend
+export UV_CACHE_DIR='D:/DevTools/uv-cache'
+uv sync --locked
+~~~
+
+Start the API:
+
+~~~bash
+uv run uvicorn nexdrop_api.main:app --host 127.0.0.1 --port 8000 --reload
+~~~
+
+Health endpoints:
+- GET http://127.0.0.1:8000/api/v1/health/live
+- GET http://127.0.0.1:8000/api/v1/health/ready
+
+The liveness endpoint does not require PostgreSQL. Readiness performs a real SELECT 1 check and returns HTTP 503 if PostgreSQL is not configured or unavailable. See backend/README.md for configuration and quality checks.
+
 ## Repository structure
 
 ~~~text
 .
+├── backend/              # FastAPI control-plane service
 ├── docs/                 # Architecture and product roadmap
 ├── public/               # Static frontend assets
 ├── src/                  # React + TypeScript frontend

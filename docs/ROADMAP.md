@@ -75,8 +75,9 @@ This roadmap is organized around verifiable outcomes. A phase is not complete me
 
 ## Phase 6 — Internet identity and signaling
 
-- [ ] Establish the FastAPI service and versioned API.
-- [ ] Add PostgreSQL migrations and persistence.
+- [x] Establish the FastAPI application foundation and versioned health API.
+- [ ] Implement the remaining versioned API domain modules.
+- [ ] Add PostgreSQL business models, migrations, and persistence.
 - [ ] Implement account/session authentication.
 - [ ] Register and revoke devices.
 - [ ] Implement short-lived signaling and connection tickets.
