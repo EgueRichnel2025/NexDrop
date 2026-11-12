@@ -14,7 +14,7 @@ This roadmap is organized around verifiable outcomes. A phase is not complete me
 - [x] Verify the frontend production build.
 - [x] Verify native Rust/Tauri dependencies with cargo check.
 - [ ] Replace the starter template identity and documentation.
-- [ ] Establish the first reviewed architecture/documentation commits.
+- [x] Establish the first reviewed architecture/documentation commits.
 
 **Exit criteria:** reproducible frontend and native checks on the Windows development machine; generated files are correctly ignored; project identity is consistent.
 
