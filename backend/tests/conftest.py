@@ -13,9 +13,13 @@ def test_settings(monkeypatch) -> Settings:
         "NEXDROP_APP_NAME",
         "NEXDROP_ENVIRONMENT",
         "NEXDROP_API_V1_PREFIX",
+        "NEXDROP_SERVER_HOST",
+        "NEXDROP_SERVER_PORT",
+        "NEXDROP_SERVER_RELOAD",
         "NEXDROP_LOG_LEVEL",
         "NEXDROP_CORS_ORIGINS",
         "NEXDROP_DATABASE_URL",
+        "NEXDROP_POSTGRES_PASSWORD",
     ):
         monkeypatch.delenv(name, raising=False)
     return Settings(_env_file=None, environment="testing", database_url=None, cors_origins=[])

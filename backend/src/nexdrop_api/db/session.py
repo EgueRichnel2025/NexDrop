@@ -1,5 +1,6 @@
 """Asynchronous database session dependencies and readiness probe."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 
@@ -33,8 +34,13 @@ async def database_is_ready(request: Request) -> bool:
     try:
         async with session_factory() as session:
             await session.execute(text("SELECT 1"))
-    except SQLAlchemyError:
-        logger.warning("Database readiness check failed.")
+    except SQLAlchemyError as exc:
+        loop_name = type(asyncio.get_running_loop()).__name__
+        logger.warning(
+            "Database readiness check failed (%s; event_loop=%s).",
+            type(exc).__name__,
+            loop_name,
+        )
         return False
 
     return True

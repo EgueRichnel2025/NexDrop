@@ -14,7 +14,10 @@ from sqlalchemy.ext.asyncio import (
 
 from nexdrop_api.api.router import api_router
 from nexdrop_api.core.config import Settings, get_settings
+from nexdrop_api.core.event_loop import configure_event_loop_policy
 from nexdrop_api.core.logging import configure_logging
+
+configure_event_loop_policy()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     app_name: str = "NexDrop API"
     environment: Literal["development", "testing", "staging", "production"] = "development"
     api_v1_prefix: str = "/api/v1"
+    server_host: str = "127.0.0.1"
+    server_port: int = Field(default=8765, ge=1, le=65535)
+    server_reload: bool = True
     log_level: str = "INFO"
     cors_origins: list[str] = Field(default_factory=list)
     database_url: str | None = None

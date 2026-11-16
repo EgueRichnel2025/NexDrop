@@ -9,7 +9,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from nexdrop_api.core.config import get_settings
+from nexdrop_api.core.event_loop import configure_event_loop_policy
 from nexdrop_api.db.base import Base
+
+configure_event_loop_policy()
 
 config = context.config
 

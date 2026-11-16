@@ -1,0 +1,26 @@
+name: nexdrop
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: nexdrop-postgres
+    environment:
+      POSTGRES_DB: nexdrop
+      POSTGRES_USER: nexdrop
+      POSTGRES_PASSWORD: ${NEXDROP_POSTGRES_PASSWORD:?Set NEXDROP_POSTGRES_PASSWORD in backend/.env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - nexdrop_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexdrop -d nexdrop"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  nexdrop_postgres_data:
+    name: nexdrop_postgres_data
