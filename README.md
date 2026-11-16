@@ -27,7 +27,7 @@ NexDrop is a Windows-first desktop application for transferring files and folder
 | Native transfer engine | Rust |
 | Online API | Python + FastAPI |
 | Database | PostgreSQL |
-| Local backend environment | Docker Compose (planned) |
+| Local backend environment | Docker Compose |
 
 The API is the control plane. File data should travel directly between peers whenever possible. A relay is a fallback data-plane component and must only forward encrypted content.
 
@@ -35,9 +35,11 @@ The API is the control plane. File data should travel directly between peers whe
 
 The repository contains the Tauri/React/Rust desktop foundation, initial architecture and roadmap documentation, and the first FastAPI server-backend foundation.
 
-The backend foundation currently includes isolated Python dependency management with uv, validated application settings, asynchronous SQLAlchemy/Psycopg engine and session setup, an asynchronous Alembic scaffold, and liveness/readiness endpoints with automated tests.
+The backend includes isolated Python dependency management with uv, validated settings, asynchronous SQLAlchemy/Psycopg connectivity, a Windows-compatible event-loop policy for the async driver, Docker Compose PostgreSQL 17, an Alembic migration baseline, and tested liveness/readiness endpoints.
 
-The following are **not implemented yet**: account authentication, user/device management, transfer signaling, persistent business models and migrations, quotas, subscriptions, billing, LAN discovery, the Rust transfer engine, direct Internet transport, and relay service.
+The PostgreSQL service is isolated from other local projects, binds only to 127.0.0.1:5434, and stores its data in the persistent `nexdrop_postgres_data` Docker volume. Local credentials are generated into the ignored `backend/.env` file.
+
+The following are **not implemented yet**: account authentication, user/device management, transfer signaling, persistent business models and business-schema migrations, quotas, subscriptions, billing, LAN discovery, the Rust transfer engine, direct Internet transport, and relay service.
 
 See:
 - [Architecture](docs/ARCHITECTURE.md)
@@ -55,6 +57,7 @@ For the current Windows development target:
 - Visual Studio C++ Build Tools and Windows SDK
 - WebView2 Runtime
 - Python 3.12 and uv
+- Docker Desktop with Docker Compose
 - Git
 
 ## Desktop development
@@ -101,17 +104,19 @@ export UV_CACHE_DIR='D:/DevTools/uv-cache'
 uv sync --locked
 ~~~
 
+Follow [backend/README.md](backend/README.md) to generate local database credentials and start the isolated PostgreSQL service before running the API.
+
 Start the API:
 
 ~~~bash
-uv run uvicorn nexdrop_api.main:app --host 127.0.0.1 --port 8000 --reload
+uv run python -m nexdrop_api.serve
 ~~~
 
 Health endpoints:
-- GET http://127.0.0.1:8000/api/v1/health/live
-- GET http://127.0.0.1:8000/api/v1/health/ready
+- GET http://127.0.0.1:8765/api/v1/health/live
+- GET http://127.0.0.1:8765/api/v1/health/ready
 
-The liveness endpoint does not require PostgreSQL. Readiness performs a real SELECT 1 check and returns HTTP 503 if PostgreSQL is not configured or unavailable. See backend/README.md for configuration and quality checks.
+The liveness endpoint does not require PostgreSQL. Readiness performs a real SELECT 1 check and returns HTTP 503 if PostgreSQL is not configured or unavailable.
 
 ## Repository structure
 

@@ -76,6 +76,9 @@ This roadmap is organized around verifiable outcomes. A phase is not complete me
 ## Phase 6 — Internet identity and signaling
 
 - [x] Establish the FastAPI application foundation and versioned health API.
+- [x] Provision isolated local PostgreSQL 17 through Docker Compose.
+- [x] Verify real asynchronous Psycopg connections, SQLAlchemy sessions, and transaction rollback.
+- [x] Establish and apply the initial Alembic versioning baseline.
 - [ ] Implement the remaining versioned API domain modules.
 - [ ] Add PostgreSQL business models, migrations, and persistence.
 - [ ] Implement account/session authentication.
