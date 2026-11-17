@@ -31,20 +31,24 @@ NexDrop is a Windows-first desktop application for transferring files and folder
 
 The API is the control plane. File data should travel directly between peers whenever possible. A relay is a fallback data-plane component and must only forward encrypted content.
 
+## Project plan
+
+The complete, authoritative development plan is [docs/PLAN_DIRECTEUR.md](docs/PLAN_DIRECTEUR.md). It lists all phases from repository setup through Windows release and later platform expansion, with status and acceptance criteria.
+
+See also:
+- [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap index](docs/ROADMAP.md)
+- [Backend development guide](backend/README.md)
+
 ## Current development status
 
-The repository contains the Tauri/React/Rust desktop foundation, initial architecture and roadmap documentation, and the first FastAPI server-backend foundation.
+The repository contains the Tauri/React/Rust desktop foundation, initial architecture documentation, and the FastAPI server-backend foundation.
 
 The backend includes isolated Python dependency management with uv, validated settings, asynchronous SQLAlchemy/Psycopg connectivity, a Windows-compatible event-loop policy for the async driver, Docker Compose PostgreSQL 17, an Alembic migration baseline, and tested liveness/readiness endpoints.
 
 The PostgreSQL service is isolated from other local projects, binds only to 127.0.0.1:5434, and stores its data in the persistent `nexdrop_postgres_data` Docker volume. Local credentials are generated into the ignored `backend/.env` file.
 
 The following are **not implemented yet**: account authentication, user/device management, transfer signaling, persistent business models and business-schema migrations, quotas, subscriptions, billing, LAN discovery, the Rust transfer engine, direct Internet transport, and relay service.
-
-See:
-- [Architecture](docs/ARCHITECTURE.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Backend development guide](backend/README.md)
 
 ## Development prerequisites
 
@@ -123,7 +127,7 @@ The liveness endpoint does not require PostgreSQL. Readiness performs a real SEL
 ~~~text
 .
 ├── backend/              # FastAPI control-plane service
-├── docs/                 # Architecture and product roadmap
+├── docs/                 # Architecture, plan and technical decisions
 ├── public/               # Static frontend assets
 ├── src/                  # React + TypeScript frontend
 ├── src-tauri/            # Tauri application and Rust core
