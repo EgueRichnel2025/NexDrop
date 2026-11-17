@@ -1,13 +1,13 @@
-# NexDrop — Proposition de modèle de données
+# NexDrop — Modèle de données et persistance métier
 
 **Document :** Conception du modèle relationnel du backend
-**Version :** 0.1 — Proposition à examiner
+**Version :** 1.0 — Base V1 validée et implémentée
 **Phase :** 3 — Modèle de données et persistance métier
 **Base cible :** PostgreSQL 17
 **ORM :** SQLAlchemy 2 asynchrone
-**Migration actuelle :** 3e98c6e8eb34 (point de départ sans table métier)
+**Révision Alembic courante :** `041602a30cb7` (13 tables métier et invariants V1)
 
-> **Statut : PROPOSITION NON VALIDÉE.** Ce document décrit le modèle proposé. Il ne signifie pas que les tables existent déjà. Aucune classe ORM métier et aucune migration métier ne doivent être créées avant examen et validation de cette conception.
+> **Statut : BASE V1 VALIDÉE ET IMPLÉMENTÉE.** Les choix de périmètre V1 confirmés sont un expéditeur et un destinataire par transfert Internet, et un plafond Free de 10 GB décimaux (10 000 000 000 octets) par transfert. Les 13 tables SQLAlchemy et leurs migrations sont appliquées. Les décisions produit encore ouvertes sont signalées plus bas et ne doivent pas être inventées.
 
 ---
 
@@ -155,7 +155,7 @@ Champs envisagés : id UUID ; session_id UUID ; token_hash BYTEA unique ; issued
 
 **Règles :** seul le hash du token opaque est stocké. La valeur brute n'est retournée qu'une fois au client. La rotation consomme l'ancien token et crée le nouveau dans une seule transaction. La réutilisation d'un token déjà consommé doit déclencher la révocation de la session concernée selon la politique de la Phase 4.
 
-Un index unique partiel doit empêcher plusieurs tokens non consommés et non révoqués pour une même session. Les access tokens de courte durée ne sont pas persistés en base dans le modèle proposé.
+Un index unique partiel doit empêcher plusieurs tokens non consommés et non révoqués pour une même session. La clé de remplacement est composite avec `session_id` : un token ne peut jamais pointer vers un token d'une autre session. Les access tokens de courte durée ne sont pas persistés en base dans le modèle proposé.
 
 ### 4.5 PLANS — Catalogue d'offres
 
@@ -213,9 +213,9 @@ Champs envisagés :
 
 L'état initial created peut être un état interne très bref ; la proposition est de créer le transfert et ses participants dans une transaction et de le rendre visible directement en awaiting_receiver.
 
-**Contraintes :** total_bytes >= 0, item_count > 0, états contrôlés, relations utilisateur/appareil cohérentes, index sur (created_by_user_id, created_at) et (status, expires_at) pour les tâches de traitement.
+**Contraintes :** total_bytes >= 0, item_count > 0, taille inférieure ou égale au plafond snapshot lorsqu'il existe, expiration postérieure à la création, états contrôlés, relations utilisateur/appareil cohérentes, index sur (created_by_user_id, created_at) et (status, expires_at) pour les tâches de traitement.
 
-La transition completed n'est autorisée qu'après validation du protocole de transfert et de l'intégrité par les pairs. Les horodatages doivent rester cohérents avec l'état.
+La transition completed n'est autorisée qu'après validation du protocole de transfert et de l'intégrité par les pairs. Les contraintes PostgreSQL vérifient que expires_at > created_at, que la taille déclarée ne dépasse pas max_transfer_bytes_snapshot, et que les états accepted, connecting, transferring, verifying et completed ont les horodatages requis. completed exige completed_at, et cette date ne peut exister pour un autre état. Les transitions restent également validées par le service métier.
 
 ### 4.7 TRANSFER_PARTICIPANTS — Participants et consentement
 
@@ -229,7 +229,7 @@ Champs envisagés : id UUID ; transfer_id UUID ; user_id UUID ; device_id UUID n
 
 Le service doit garantir qu'il existe exactement un expéditeur et exactement un destinataire avant de démarrer la négociation. L'expéditeur doit correspondre à transfers.created_by_user_id. Ces invariants seront appliqués dans les transactions de création et de consommation d'invitation et couverts par des tests d'intégration.
 
-Le consentement du destinataire est enregistré dans response_status et responded_at. Le chemin de destination du destinataire n'est jamais enregistré sur le serveur.
+Le consentement du destinataire est enregistré dans response_status et responded_at. PostgreSQL refuse un destinataire déjà accepté, refusé ou révoqué sans responded_at. Le chemin de destination du destinataire n'est jamais enregistré sur le serveur.
 
 ### 4.8 TRANSFER_INVITATIONS — Codes et liens de transfert
 
@@ -239,7 +239,7 @@ Champs envisagés : id UUID ; transfer_id UUID ; created_by_user_id UUID ; kind 
 
 **Sécurité :** aucune valeur brute de code ou de lien n'est conservée. Les liens doivent être générés avec une entropie cryptographique élevée et leur empreinte peut être conservée. Les codes courts sont plus sensibles aux attaques par dictionnaire : ils exigent un HMAC avec secret serveur, une durée de vie courte, une limitation stricte des tentatives et une protection contre l'énumération.
 
-La consommation doit être atomique : vérification de l'expiration, de la révocation et du nombre maximal d'utilisations, incrément, création du participant et événement associés dans une transaction unique. En V1, max_uses vaut 1 par défaut et la rédemption associe un seul destinataire au transfert.
+La consommation doit être atomique : vérification de l'expiration, de la révocation et du nombre maximal d'utilisations, incrément, création du participant et événement associés dans une transaction unique. En V1, PostgreSQL impose max_uses = 1 et la rédemption associe uniquement un participant dont le rôle est recipient au transfert correspondant.
 
 ### 4.9 TRANSFER_INVITATION_REDEMPTIONS — Consommation des invitations
 
@@ -459,7 +459,7 @@ Les durées précises ne sont volontairement pas inventées dans ce document. El
 
 ## 10. Décisions produit et architecture encore ouvertes
 
-Ces points doivent être tranchés avant de figer la migration initiale métier :
+Le schéma V1 est en place. Ces points restent ouverts et devront être tranchés avant d’activer les fonctionnalités correspondantes ou de préparer la production :
 
 | Sujet | Proposition de départ | Statut |
 |---|---|---|
@@ -477,51 +477,57 @@ Ces points doivent être tranchés avant de figer la migration initiale métier 
 | Quota cumulé périodique | Aucun quota mensuel confirmé ; ne pas en inventer | À décider si besoin |
 | Attribution de l'usage P2P | Reçus signés et validation par le protocole à concevoir | Phase 20–21 |
 
-### Recommandation pour les 10 GB
+### Règle Free confirmée
 
-Adopter 10_000_000_000 octets comme plafond initial, ce qui correspond à 10 GB au sens décimal. L'interface pourra afficher « 10 Go » en français, mais l'API doit toujours travailler en octets. Cette proposition doit être confirmée avant la création de la ligne Free dans la migration ou les données de référence.
+Le plafond Free appliqué par le backend est de `10_000_000_000` octets (10 GB décimaux) pour l’ensemble d’un transfert Internet. La valeur est enregistrée sur l’offre `free` et copiée dans `max_transfer_bytes_snapshot` lors de la création d’un transfert. Les comparaisons utilisent toujours les octets ; l’interface pourra afficher « 10 Go ».
 
-## 11. Séquence proposée d'implémentation de la Phase 3
+## 11. Séquence d'implémentation réalisée de la Phase 3
 
-Après validation de ce document :
+Travaux effectivement réalisés après validation de la base V1 :
 
 ### 3.1 — Conventions et fondation ORM
 
-- Fixer les types UUID, timestamps, contraintes et noms de tables.
-- Décider le découpage des modèles SQLAlchemy en modules.
-- Importer explicitement tous les modèles dans la métadonnée Alembic.
+- Types UUID générés côté application et dates `TIMESTAMPTZ` en UTC.
+- Conventions de nommage des tables, index, contraintes et clés étrangères.
+- Modèles séparés dans les modules `identity.py`, `transfers.py` et `billing.py`.
+- Import explicite de tous les modèles dans la métadonnée utilisée par Alembic.
 
 ### 3.2 — Identités et sessions
 
-- Créer users, devices, sessions et session_refresh_tokens.
-- Tester les unicités, clés composites et règles de révocation.
+- Modèles `users`, `devices`, `sessions` et `session_refresh_tokens`.
+- Unicité de l'e-mail normalisé et propriété des appareils vérifiée par clés composites.
+- Hash SHA-256 des refresh tokens, un token courant par session et chaîne de rotation liée à la même session.
 
 ### 3.3 — Transferts et consentement
 
-- Créer plans, transfers, transfer_participants, transfer_invitations, transfer_invitation_redemptions (si retenue) et transfer_events.
-- Tester le cycle d'état, l'intégrité des associations et les transactions concurrentes.
+- Modèles `transfers`, `transfer_participants`, `transfer_invitations`, `transfer_invitation_redemptions` et `transfer_events`.
+- Un expéditeur et un destinataire au maximum par transfert V1 ; la logique applicative devra garantir leur présence avant la négociation.
+- Invitations à usage unique et rédemption réservée au participant destinataire.
+- Contraintes PostgreSQL sur taille, expiration, consentement, état et horodatages.
+- Versionnement optimiste SQLAlchemy pour détecter les modifications concurrentes.
 
 ### 3.4 — Abonnements et mesure d'utilisation
 
-- Créer subscriptions, payments et transfer_usage_records.
-- Ajouter des données de référence minimales uniquement pour les offres effectivement décidées.
+- Modèles `plans`, `subscriptions`, `payments` et `transfer_usage_records`.
+- Offre Free seedée à 10 000 000 000 octets par transfert Internet.
+- Un seul abonnement effectif par utilisateur et références de paiement sans données bancaires.
+- Mesures d'usage uniques par transfert et participant.
 
 ### 3.5 — Migrations et validation
 
-- Générer une migration Alembic lisible et relue manuellement.
-- Appliquer upgrade depuis la base initiale.
-- Vérifier la structure réellement créée dans PostgreSQL.
-- Tester les contraintes avec des transactions réelles.
-- Tester downgrade sur une base de test dédiée, sans supprimer les données de développement de l'utilisateur.
-- Vérifier alembic check, alembic heads, Pytest, Ruff et l'état Git.
+- Révision `8d9e28ddd1c7` créée et appliquée pour les 13 tables et l'offre Free.
+- Révision `041602a30cb7` créée et appliquée pour les invariants additionnels.
+- Downgrade jusqu'à `base`, puis upgrade complet rejoué avec succès sur `nexdrop_test`.
+- Tests de contraintes, confidentialité et concurrence exécutés sur PostgreSQL réel.
+- `alembic check`, Ruff, formatage, compilation Python et readiness API validés.
 
-Aucune migration ne doit être créée avant la validation de la proposition et des décisions bloquantes ci-dessus.
+Les décisions encore ouvertes de la section 10 sont réservées aux phases fonctionnelles correspondantes ; elles ne doivent pas être remplacées par des hypothèses arbitraires.
 
 ---
 
 ## 12. Critères de sortie de la Phase 3
 
-La Phase 3 pourra être déclarée terminée uniquement si :
+Les critères de sortie appliqués à la Phase 3 étaient :
 
 - Le présent modèle est validé et les décisions bloquantes sont consignées.
 - Les modèles SQLAlchemy couvrent les entités retenues et sont importés dans Base.metadata.
@@ -540,10 +546,14 @@ La Phase 3 pourra être déclarée terminée uniquement si :
 | Élément | État |
 |---|---|
 | Inspection du backend et de PostgreSQL | Vérifiée |
-| Proposition conceptuelle des entités | Documentée ici |
-| Décisions bloquantes | À examiner |
-| Modèles SQLAlchemy métier | Non commencés |
-| Migration métier | Non créée |
-| Tests de persistance métier | Non commencés |
+| Base relationnelle V1 | Validée : 1 expéditeur, 1 destinataire, Free 10 GB |
+| Modèles SQLAlchemy | 13 tables enregistrées dans `Base.metadata` |
+| Migration initiale métier | `8d9e28ddd1c7` — appliquée |
+| Migration des invariants V1 | `041602a30cb7` — appliquée |
+| PostgreSQL de développement | 13 tables, offre Free seedée |
+| Base PostgreSQL de test | `nexdrop_test`, distincte de la base de développement |
+| Tests automatisés | 31 tests réussis sur PostgreSQL réel |
+| Concurrence optimiste | Vérifiée avec deux sessions SQLAlchemy |
+| Dérive Alembic | Aucune opération supplémentaire détectée |
 
-**Prochaine action : examiner et valider cette proposition avant toute création de table métier.**
+**Statut de la Phase 3 : TERMINÉE.** Les décisions commerciales ou protocolaires encore ouvertes sont suivies dans la section 10 et seront traitées dans leurs phases respectives.

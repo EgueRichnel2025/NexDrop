@@ -31,7 +31,7 @@ Les statuts indiquent uniquement ce qui a été vérifié dans le dépôt et sur
 - **Phase 0 — Fondation du dépôt : partiellement réalisée.**
 - **Phase 1 — Architecture et spécifications : partiellement réalisée.**
 - **Phase 2 — Fondation du backend : terminée et vérifiée.**
-- **Prochaine phase : Phase 3 — Modèle de données et persistance métier.**
+- **Prochaine phase : Phase 4 — Comptes et authentification.**
 
 Le frontend Tauri/React existe encore sous forme de projet initial. Il ne faut pas confondre cette présence avec une interface NexDrop terminée.
 
@@ -118,7 +118,7 @@ Travaux :
 
 **Critères de sortie :** schéma documenté, migrations reproductibles, contraintes testées, relations cohérentes et données persistées correctement.
 
-**Statut : À RÉALISER — PROCHAINE PHASE.**
+**Statut : TERMINÉE.** Modèle relationnel V1 validé ; 13 modèles SQLAlchemy ; migrations `8d9e28ddd1c7` et `041602a30cb7` appliquées ; 31 tests réussis sur PostgreSQL réel, dont un test de concurrence à deux sessions ; aucune dérive Alembic. Les décisions ouvertes Pro, prestataire de paiement, conservation et identité cryptographique restent affectées à leurs phases fonctionnelles respectives.
 
 ## Phase 4 — Comptes et authentification
 
@@ -504,4 +504,4 @@ Périmètre possible :
 
 ## Prochaine action autorisée par ce plan
 
-La prochaine phase de développement est la **Phase 3 — Modèle de données et persistance métier**. Elle commence par la conception du schéma relationnel et des règles métier ; aucune table métier ne doit être créée avant validation de cette conception.
+La Phase 3 — Modèle de données et persistance métier est terminée et validée. La prochaine phase de développement est la **Phase 4 — Comptes et authentification** : inscription, vérification d'adresse e-mail, connexion, stockage sécurisé des mots de passe, sessions révocables et rotation des tokens de renouvellement.

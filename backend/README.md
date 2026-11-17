@@ -84,10 +84,15 @@ migration runner.
 
 ## Database migrations
 
-Alembic is configured for SQLAlchemy's asynchronous Psycopg driver. The initial
-revision `3e98c6e8eb34` establishes migration version tracking only; it intentionally
-creates no business tables. Domain models and their schema will be introduced by
-subsequent, independently reviewable revisions.
+Alembic is configured for SQLAlchemy's asynchronous Psycopg driver. The current
+schema contains 13 business tables covering users, devices, sessions, transfers,
+participants, invitations, audit events, plans, subscriptions, payments, and usage.
+
+Applied revisions:
+
+- `3e98c6e8eb34` — initial migration-version checkpoint.
+- `8d9e28ddd1c7` — initial business schema and the Free plan seed (10,000,000,000 bytes per Internet transfer).
+- `041602a30cb7` — transfer-size, timestamp, recipient-redemption, and same-session refresh-token invariants.
 
 With PostgreSQL running and `NEXDROP_DATABASE_URL` configured:
 
@@ -95,18 +100,42 @@ With PostgreSQL running and `NEXDROP_DATABASE_URL` configured:
 uv run alembic current
 uv run alembic heads
 uv run alembic upgrade head
+uv run alembic check
 ```
 
-## Quality checks
+## Tests and quality checks
+
+The ordinary unit/API tests run with `uv run pytest -q`. PostgreSQL integration tests
+also run when `NEXDROP_TEST_DATABASE_URL` points to the separate, migrated `nexdrop_test`
+database. Never point this variable at the development database. Each constraint test
+uses a rollback-only transaction; the explicit two-session concurrency test cleans up
+its isolated records.
+
+Example Git Bash setup after creating and migrating the dedicated test database:
+
+```bash
+export NEXDROP_TEST_DATABASE_URL="$(uv run python - <<'PY'
+from sqlalchemy.engine import make_url
+from nexdrop_api.core.config import get_settings
+url = get_settings().database_url
+if url is None:
+    raise SystemExit("NEXDROP_DATABASE_URL is not configured")
+print(make_url(url).set(database="nexdrop_test").render_as_string(hide_password=False))
+PY
+)"
+uv run pytest -q
+```
+
+Run the complete quality checks with:
 
 ```bash
 uv lock --check
 uv sync --locked
-uv run pytest -q
 uv run ruff check .
 uv run ruff format --check .
-uv run python -m compileall src tests
+uv run python -m compileall src tests migrations
 uv run alembic heads
+uv run alembic check
 uv tree
 ```
 
